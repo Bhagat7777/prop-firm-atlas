@@ -1,11 +1,14 @@
-import { useState, useEffect, useRef } from 'react';
-import { motion } from 'framer-motion';
+import { useState } from 'react';
+import { motion, useMotionValue, useTransform, useSpring } from 'framer-motion';
 
 const navLinks = [
   { label: 'Benefits', href: '#benefits' },
   { label: 'Community', href: '#community' },
   { label: 'Discounts', href: '#discounts' },
 ];
+
+import { trackAndRedirect } from '@/lib/tracking';
+import { useEffect } from 'react';
 
 export default function Navbar() {
   const [scrolled, setScrolled] = useState(false);
@@ -34,7 +37,6 @@ export default function Navbar() {
             </span>
           </a>
 
-          {/* Desktop nav */}
           <div className="hidden md:flex items-center gap-8">
             {navLinks.map((link) => (
               <a
@@ -45,15 +47,14 @@ export default function Navbar() {
                 {link.label}
               </a>
             ))}
-            <a
-              href="#discounts"
-              className="gold-gradient text-primary-foreground px-5 py-2.5 rounded-lg text-sm font-semibold gold-glow-hover transition-all duration-300 hover:scale-105"
+            <button
+              onClick={() => trackAndRedirect('Discount')}
+              className="gold-gradient text-primary-foreground px-5 py-2.5 rounded-lg text-sm font-semibold gold-glow-hover transition-all duration-300 hover:scale-105 cursor-pointer"
             >
               Get Funded
-            </a>
+            </button>
           </div>
 
-          {/* Mobile hamburger */}
           <button
             onClick={() => setMobileOpen(!mobileOpen)}
             className="md:hidden text-foreground p-2"
@@ -69,7 +70,6 @@ export default function Navbar() {
           </button>
         </div>
 
-        {/* Mobile menu */}
         {mobileOpen && (
           <motion.div
             initial={{ opacity: 0, y: -10 }}
@@ -86,13 +86,12 @@ export default function Navbar() {
                 {link.label}
               </a>
             ))}
-            <a
-              href="#discounts"
-              onClick={() => setMobileOpen(false)}
-              className="block gold-gradient text-primary-foreground px-5 py-2.5 rounded-lg text-sm font-semibold text-center"
+            <button
+              onClick={() => { setMobileOpen(false); trackAndRedirect('Discount'); }}
+              className="block w-full gold-gradient text-primary-foreground px-5 py-2.5 rounded-lg text-sm font-semibold text-center cursor-pointer"
             >
               Get Funded
-            </a>
+            </button>
           </motion.div>
         )}
       </div>

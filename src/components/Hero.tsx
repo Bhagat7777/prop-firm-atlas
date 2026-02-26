@@ -1,6 +1,7 @@
 import { Suspense, useRef } from 'react';
 import { motion, useMotionValue, useTransform, useSpring } from 'framer-motion';
 import HeroScene from './HeroScene';
+import { trackAndRedirect } from '@/lib/tracking';
 import heroBg from '@/assets/hero-bg.jpg';
 
 export default function Hero() {
@@ -24,7 +25,6 @@ export default function Hero() {
       onMouseMove={handleMouseMove}
       className="relative min-h-screen flex items-center justify-center overflow-hidden"
     >
-      {/* Background image */}
       <div
         className="absolute inset-0 z-0"
         style={{
@@ -35,12 +35,10 @@ export default function Hero() {
       />
       <div className="absolute inset-0 z-0 bg-background/70" />
 
-      {/* 3D Scene */}
       <Suspense fallback={null}>
         <HeroScene />
       </Suspense>
 
-      {/* Content */}
       <div className="relative z-10 max-w-5xl mx-auto px-4 sm:px-6 text-center">
         <motion.div
           style={{ rotateX, rotateY, perspective: 1000 }}
@@ -83,24 +81,21 @@ export default function Hero() {
             transition={{ delay: 0.8 }}
             className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-4"
           >
-            <a
-              href="#discounts"
-              className="gold-gradient text-primary-foreground px-8 py-4 rounded-xl text-base font-bold gold-glow-hover transition-all duration-300 hover:scale-105 w-full sm:w-auto text-center animate-glow-pulse"
+            <button
+              onClick={() => trackAndRedirect('Discount')}
+              className="gold-gradient text-primary-foreground px-8 py-4 rounded-xl text-base font-bold gold-glow-hover transition-all duration-300 hover:scale-105 w-full sm:w-auto text-center animate-glow-pulse cursor-pointer"
             >
               Unlock 40% Discount
-            </a>
-            <a
-              href="https://discord.gg/"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="glass-card text-foreground px-8 py-4 rounded-xl text-base font-semibold hover:border-primary/50 transition-all duration-300 hover:scale-105 w-full sm:w-auto text-center"
+            </button>
+            <button
+              onClick={() => trackAndRedirect('Discord', 'https://discord.gg/')}
+              className="glass-card text-foreground px-8 py-4 rounded-xl text-base font-semibold hover:border-primary/50 transition-all duration-300 hover:scale-105 w-full sm:w-auto text-center cursor-pointer"
             >
               Join Discord Community
-            </a>
+            </button>
           </motion.div>
         </motion.div>
 
-        {/* Scroll indicator */}
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
