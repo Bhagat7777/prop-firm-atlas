@@ -1,5 +1,6 @@
 import { motion } from 'framer-motion';
 import { Zap, ArrowRight } from 'lucide-react';
+import { trackAndRedirect } from '@/lib/tracking';
 
 const plans = [
   { size: '$10K', original: '$199', discounted: '$119', savings: '40%' },
@@ -10,7 +11,6 @@ const plans = [
 export default function DiscountSection() {
   return (
     <section id="discounts" className="py-24 sm:py-32 section-gradient relative overflow-hidden">
-      {/* Ambient glow */}
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] rounded-full bg-primary/5 blur-[120px] pointer-events-none" />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
@@ -66,12 +66,12 @@ export default function DiscountSection() {
                 <p className="text-primary text-sm font-bold">Save {plan.savings}</p>
               </div>
 
-              <a
-                href="#"
-                className="gold-gradient text-primary-foreground w-full py-3 rounded-xl text-sm font-bold flex items-center justify-center gap-2 gold-glow-hover transition-all duration-300 hover:scale-105"
+              <button
+                onClick={() => trackAndRedirect('Discount')}
+                className="gold-gradient text-primary-foreground w-full py-3 rounded-xl text-sm font-bold flex items-center justify-center gap-2 gold-glow-hover transition-all duration-300 hover:scale-105 cursor-pointer"
               >
                 Get My Discount <ArrowRight className="w-4 h-4" />
-              </a>
+              </button>
             </motion.div>
           ))}
         </div>

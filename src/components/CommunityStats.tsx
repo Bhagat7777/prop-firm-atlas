@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { motion, useInView } from 'framer-motion';
+import { trackAndRedirect } from '@/lib/tracking';
 
 function AnimatedCounter({ target, suffix = '+', label }: { target: number; suffix?: string; label: string }) {
   const [count, setCount] = useState(0);
@@ -46,6 +47,7 @@ const stats = [
 const socials = [
   {
     label: 'Join Discord',
+    trackName: 'Discord',
     href: 'https://discord.gg/',
     icon: (
       <svg viewBox="0 0 24 24" className="w-5 h-5" fill="currentColor">
@@ -55,6 +57,7 @@ const socials = [
   },
   {
     label: 'Follow on X',
+    trackName: 'X',
     href: 'https://x.com/',
     icon: (
       <svg viewBox="0 0 24 24" className="w-5 h-5" fill="currentColor">
@@ -64,6 +67,7 @@ const socials = [
   },
   {
     label: 'Join Telegram',
+    trackName: 'Telegram',
     href: 'https://t.me/',
     icon: (
       <svg viewBox="0 0 24 24" className="w-5 h-5" fill="currentColor">
@@ -106,7 +110,6 @@ export default function CommunityStats() {
           ))}
         </div>
 
-        {/* Social CTAs */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
@@ -114,16 +117,14 @@ export default function CommunityStats() {
           className="flex flex-col sm:flex-row items-center justify-center gap-4"
         >
           {socials.map((social) => (
-            <a
+            <button
               key={social.label}
-              href={social.href}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="glass-card px-6 py-3 rounded-xl flex items-center gap-3 text-sm font-semibold text-foreground hover:border-primary/40 gold-glow-hover transition-all duration-300 hover:scale-105 w-full sm:w-auto justify-center"
+              onClick={() => trackAndRedirect(social.trackName, social.href)}
+              className="glass-card px-6 py-3 rounded-xl flex items-center gap-3 text-sm font-semibold text-foreground hover:border-primary/40 gold-glow-hover transition-all duration-300 hover:scale-105 w-full sm:w-auto justify-center cursor-pointer"
             >
               {social.icon}
               {social.label}
-            </a>
+            </button>
           ))}
         </motion.div>
       </div>
