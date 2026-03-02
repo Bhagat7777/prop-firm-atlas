@@ -3,9 +3,10 @@ import { supabase } from '@/integrations/supabase/client';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, LineChart, Line } from 'recharts';
-import { LogOut, Download, Users, MousePointerClick, Globe, Monitor } from 'lucide-react';
+import { LogOut, Download, Users, MousePointerClick, Globe, Monitor, Store } from 'lucide-react';
 
 type DateRange = 'daily' | 'weekly' | 'monthly';
+type SiteFilter = 'all' | 'main' | 'store';
 
 export default function AdminDashboard() {
   const navigate = useNavigate();
@@ -14,6 +15,7 @@ export default function AdminDashboard() {
   const [clicks, setClicks] = useState<any[]>([]);
   const [sessions, setSessions] = useState<any[]>([]);
   const [dateRange, setDateRange] = useState<DateRange>('daily');
+  const [siteFilter, setSiteFilter] = useState<SiteFilter>('all');
   const [adCostPlatform, setAdCostPlatform] = useState('');
   const [adCostAmount, setAdCostAmount] = useState('');
 
@@ -21,7 +23,6 @@ export default function AdminDashboard() {
     checkAuth();
     fetchData();
 
-    // Realtime subscriptions
     const channel = supabase
       .channel('admin-realtime')
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'visitors' }, () => fetchData())
@@ -55,20 +56,37 @@ export default function AdminDashboard() {
     navigate('/admin/login');
   };
 
+  // Filtered data based on site selection
+  const filteredVisitors = useMemo(() =>
+    siteFilter === 'all' ? visitors : visitors.filter(v => (v.site || 'main') === siteFilter),
+    [visitors, siteFilter]
+  );
+
+  const filteredClicks = useMemo(() =>
+    siteFilter === 'all' ? clicks : clicks.filter(c => (c.site || 'main') === siteFilter),
+    [clicks, siteFilter]
+  );
+
   // Metrics
-  const totalVisitors = visitors.length;
-  const uniquDevices = new Set(visitors.map(v => v.device)).size;
-  const discordClicks = clicks.filter(c => c.button_name === 'Discord').length;
-  const telegramClicks = clicks.filter(c => c.button_name === 'Telegram').length;
-  const discountClicks = clicks.filter(c => c.button_name === 'Discount').length;
-  const journalClicks = clicks.filter(c => c.button_name === 'Journal').length;
-  const totalClicks = clicks.length;
+  const totalVisitors = filteredVisitors.length;
+  const uniquDevices = new Set(filteredVisitors.map(v => v.device)).size;
+  const discordClicks = filteredClicks.filter(c => c.button_name === 'Discord').length;
+  const telegramClicks = filteredClicks.filter(c => c.button_name === 'Telegram').length;
+  const discountClicks = filteredClicks.filter(c => c.button_name === 'Discount').length;
+  const journalClicks = filteredClicks.filter(c => c.button_name === 'Journal').length;
+  const totalClicks = filteredClicks.length;
   const conversionRate = totalVisitors > 0 ? ((totalClicks / totalVisitors) * 100).toFixed(1) : '0';
+
+  // Store-specific stats
+  const storeVisitors = visitors.filter(v => (v.site || 'main') === 'store').length;
+  const mainVisitors = visitors.filter(v => (v.site || 'main') === 'main').length;
+  const storeClicks = clicks.filter(c => (c.site || 'main') === 'store').length;
+  const mainClicks = clicks.filter(c => (c.site || 'main') === 'main').length;
 
   // Traffic chart data
   const trafficData = useMemo(() => {
     const now = new Date();
-    const groups: Record<string, number> = {};
+    const groups: Record<string, { main: number; store: number }> = {};
     const days = dateRange === 'daily' ? 7 : dateRange === 'weekly' ? 28 : 90;
 
     for (let i = days - 1; i >= 0; i--) {
@@ -77,7 +95,7 @@ export default function AdminDashboard() {
       const key = dateRange === 'monthly'
         ? d.toLocaleDateString('en-US', { month: 'short' })
         : d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-      groups[key] = 0;
+      groups[key] = { main: 0, store: 0 };
     }
 
     visitors.forEach(v => {
@@ -85,30 +103,38 @@ export default function AdminDashboard() {
       const key = dateRange === 'monthly'
         ? d.toLocaleDateString('en-US', { month: 'short' })
         : d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-      if (groups[key] !== undefined) groups[key]++;
+      if (groups[key] !== undefined) {
+        const site = (v.site || 'main') as 'main' | 'store';
+        groups[key][site]++;
+      }
     });
 
-    return Object.entries(groups).map(([date, count]) => ({ date, visitors: count }));
+    return Object.entries(groups).map(([date, counts]) => ({
+      date,
+      main: counts.main,
+      store: counts.store,
+      total: counts.main + counts.store,
+    }));
   }, [visitors, dateRange]);
 
   // Device breakdown
   const deviceData = useMemo(() => {
     const counts: Record<string, number> = {};
-    visitors.forEach(v => {
+    filteredVisitors.forEach(v => {
       const d = v.device || 'unknown';
       counts[d] = (counts[d] || 0) + 1;
     });
     return Object.entries(counts).map(([name, value]) => ({ name, value }));
-  }, [visitors]);
+  }, [filteredVisitors]);
 
   // Click breakdown
   const clickData = useMemo(() => {
     const counts: Record<string, number> = {};
-    clicks.forEach(c => {
+    filteredClicks.forEach(c => {
       counts[c.button_name] = (counts[c.button_name] || 0) + 1;
     });
     return Object.entries(counts).map(([name, value]) => ({ name, value }));
-  }, [clicks]);
+  }, [filteredClicks]);
 
   // CSV Export
   const exportCSV = (data: any[], filename: string) => {
@@ -156,6 +182,12 @@ export default function AdminDashboard() {
     { label: 'Journal Clicks', value: journalClicks },
   ];
 
+  const siteFilters: { label: string; value: SiteFilter }[] = [
+    { label: 'All Sites', value: 'all' },
+    { label: 'Main Site', value: 'main' },
+    { label: 'Store', value: 'store' },
+  ];
+
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
@@ -175,6 +207,45 @@ export default function AdminDashboard() {
       </header>
 
       <main className="max-w-7xl mx-auto px-4 sm:px-8 py-8 space-y-8">
+        {/* Site Filter */}
+        <div className="flex items-center gap-2">
+          <Store className="w-4 h-4 text-muted-foreground" />
+          <span className="text-sm text-muted-foreground mr-2">Filter by site:</span>
+          {siteFilters.map(f => (
+            <button
+              key={f.value}
+              onClick={() => setSiteFilter(f.value)}
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                siteFilter === f.value
+                  ? 'gold-gradient text-primary-foreground'
+                  : 'glass-card text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              {f.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Site Comparison Cards */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="glass-card p-4 text-center">
+            <p className="text-xs text-muted-foreground mb-1">Main Site Visitors</p>
+            <p className="text-xl font-bold text-foreground">{mainVisitors}</p>
+          </div>
+          <div className="glass-card p-4 text-center">
+            <p className="text-xs text-muted-foreground mb-1">Store Visitors</p>
+            <p className="text-xl font-bold gold-gradient-text">{storeVisitors}</p>
+          </div>
+          <div className="glass-card p-4 text-center">
+            <p className="text-xs text-muted-foreground mb-1">Main Site Clicks</p>
+            <p className="text-xl font-bold text-foreground">{mainClicks}</p>
+          </div>
+          <div className="glass-card p-4 text-center">
+            <p className="text-xs text-muted-foreground mb-1">Store Clicks</p>
+            <p className="text-xl font-bold gold-gradient-text">{storeClicks}</p>
+          </div>
+        </div>
+
         {/* Stat Cards */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           {statCards.map((stat, i) => {
@@ -209,7 +280,7 @@ export default function AdminDashboard() {
           ))}
         </div>
 
-        {/* Traffic Chart */}
+        {/* Traffic Chart - now shows main vs store */}
         <div className="glass-card p-6">
           <div className="flex items-center justify-between mb-6">
             <h2 className="font-semibold text-foreground">Traffic Overview</h2>
@@ -229,6 +300,16 @@ export default function AdminDashboard() {
               ))}
             </div>
           </div>
+          <div className="flex gap-4 mb-4 text-xs">
+            <span className="flex items-center gap-1.5">
+              <span className="w-3 h-3 rounded-sm" style={{ backgroundColor: 'hsl(42, 48%, 57%)' }} />
+              Main Site
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="w-3 h-3 rounded-sm" style={{ backgroundColor: 'hsl(200, 70%, 55%)' }} />
+              Store
+            </span>
+          </div>
           <ResponsiveContainer width="100%" height={280}>
             <LineChart data={trafficData}>
               <XAxis dataKey="date" stroke="hsl(215, 20%, 55%)" fontSize={11} />
@@ -242,50 +323,33 @@ export default function AdminDashboard() {
                   fontSize: 12,
                 }}
               />
-              <Line type="monotone" dataKey="visitors" stroke="hsl(42, 48%, 57%)" strokeWidth={2} dot={false} />
+              <Line type="monotone" dataKey="main" stroke="hsl(42, 48%, 57%)" strokeWidth={2} dot={false} name="Main Site" />
+              <Line type="monotone" dataKey="store" stroke="hsl(200, 70%, 55%)" strokeWidth={2} dot={false} name="Store" />
             </LineChart>
           </ResponsiveContainer>
         </div>
 
         {/* Charts Row */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Device Breakdown */}
           <div className="glass-card p-6">
             <h2 className="font-semibold text-foreground mb-4">Device Breakdown</h2>
             <ResponsiveContainer width="100%" height={200}>
               <BarChart data={deviceData}>
                 <XAxis dataKey="name" stroke="hsl(215, 20%, 55%)" fontSize={11} />
                 <YAxis stroke="hsl(215, 20%, 55%)" fontSize={11} />
-                <Tooltip
-                  contentStyle={{
-                    backgroundColor: 'hsl(219, 37%, 17%)',
-                    border: '1px solid hsl(219, 30%, 22%)',
-                    borderRadius: '8px',
-                    color: 'hsl(210, 17%, 98%)',
-                    fontSize: 12,
-                  }}
-                />
+                <Tooltip contentStyle={{ backgroundColor: 'hsl(219, 37%, 17%)', border: '1px solid hsl(219, 30%, 22%)', borderRadius: '8px', color: 'hsl(210, 17%, 98%)', fontSize: 12 }} />
                 <Bar dataKey="value" fill="hsl(42, 48%, 57%)" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>
 
-          {/* Click Breakdown */}
           <div className="glass-card p-6">
             <h2 className="font-semibold text-foreground mb-4">Click Breakdown</h2>
             <ResponsiveContainer width="100%" height={200}>
               <BarChart data={clickData}>
                 <XAxis dataKey="name" stroke="hsl(215, 20%, 55%)" fontSize={11} />
                 <YAxis stroke="hsl(215, 20%, 55%)" fontSize={11} />
-                <Tooltip
-                  contentStyle={{
-                    backgroundColor: 'hsl(219, 37%, 17%)',
-                    border: '1px solid hsl(219, 30%, 22%)',
-                    borderRadius: '8px',
-                    color: 'hsl(210, 17%, 98%)',
-                    fontSize: 12,
-                  }}
-                />
+                <Tooltip contentStyle={{ backgroundColor: 'hsl(219, 37%, 17%)', border: '1px solid hsl(219, 30%, 22%)', borderRadius: '8px', color: 'hsl(210, 17%, 98%)', fontSize: 12 }} />
                 <Bar dataKey="value" fill="hsl(43, 71%, 69%)" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
@@ -296,23 +360,9 @@ export default function AdminDashboard() {
         <div className="glass-card p-6">
           <h2 className="font-semibold text-foreground mb-4">Ad Cost Input (ROI Tracking)</h2>
           <div className="flex flex-col sm:flex-row gap-3">
-            <input
-              type="text"
-              value={adCostPlatform}
-              onChange={(e) => setAdCostPlatform(e.target.value)}
-              placeholder="Platform (e.g. Meta, Google)"
-              className="flex-1 px-4 py-2 rounded-lg bg-secondary border border-border text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-            />
-            <input
-              type="number"
-              value={adCostAmount}
-              onChange={(e) => setAdCostAmount(e.target.value)}
-              placeholder="Cost (₹)"
-              className="w-full sm:w-32 px-4 py-2 rounded-lg bg-secondary border border-border text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-            />
-            <button onClick={handleAddCost} className="gold-gradient text-primary-foreground px-6 py-2 rounded-lg text-sm font-semibold hover:scale-105 transition-all">
-              Add Cost
-            </button>
+            <input type="text" value={adCostPlatform} onChange={(e) => setAdCostPlatform(e.target.value)} placeholder="Platform (e.g. Meta, Google)" className="flex-1 px-4 py-2 rounded-lg bg-secondary border border-border text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+            <input type="number" value={adCostAmount} onChange={(e) => setAdCostAmount(e.target.value)} placeholder="Cost (₹)" className="w-full sm:w-32 px-4 py-2 rounded-lg bg-secondary border border-border text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+            <button onClick={handleAddCost} className="gold-gradient text-primary-foreground px-6 py-2 rounded-lg text-sm font-semibold hover:scale-105 transition-all">Add Cost</button>
           </div>
         </div>
 
@@ -320,7 +370,7 @@ export default function AdminDashboard() {
         <div className="glass-card p-6">
           <div className="flex items-center justify-between mb-4">
             <h2 className="font-semibold text-foreground">Recent Visitors</h2>
-            <button onClick={() => exportCSV(visitors, 'visitors')} className="text-xs text-primary hover:underline flex items-center gap-1">
+            <button onClick={() => exportCSV(filteredVisitors, 'visitors')} className="text-xs text-primary hover:underline flex items-center gap-1">
               <Download className="w-3 h-3" /> CSV
             </button>
           </div>
@@ -328,6 +378,7 @@ export default function AdminDashboard() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="text-muted-foreground border-b border-border/30">
+                  <th className="text-left py-2 px-3 font-medium">Site</th>
                   <th className="text-left py-2 px-3 font-medium">Device</th>
                   <th className="text-left py-2 px-3 font-medium">Source</th>
                   <th className="text-left py-2 px-3 font-medium">UTM Source</th>
@@ -335,8 +386,17 @@ export default function AdminDashboard() {
                 </tr>
               </thead>
               <tbody>
-                {visitors.slice(0, 20).map((v) => (
+                {filteredVisitors.slice(0, 20).map((v) => (
                   <tr key={v.id} className="border-b border-border/10 hover:bg-secondary/30">
+                    <td className="py-2 px-3">
+                      <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                        (v.site || 'main') === 'store'
+                          ? 'bg-blue-500/20 text-blue-400'
+                          : 'bg-primary/20 text-primary'
+                      }`}>
+                        {(v.site || 'main') === 'store' ? 'Store' : 'Main'}
+                      </span>
+                    </td>
                     <td className="py-2 px-3 text-foreground">{v.device || '—'}</td>
                     <td className="py-2 px-3 text-foreground">{v.source || 'direct'}</td>
                     <td className="py-2 px-3 text-foreground">{v.utm_source || '—'}</td>
@@ -345,7 +405,7 @@ export default function AdminDashboard() {
                 ))}
               </tbody>
             </table>
-            {visitors.length === 0 && (
+            {filteredVisitors.length === 0 && (
               <p className="text-center text-muted-foreground py-8 text-sm">No visitors yet</p>
             )}
           </div>

@@ -44,6 +44,7 @@ export type Database = {
           created_at: string
           id: string
           redirect_url: string | null
+          site: string
           visitor_id: string | null
         }
         Insert: {
@@ -51,6 +52,7 @@ export type Database = {
           created_at?: string
           id?: string
           redirect_url?: string | null
+          site?: string
           visitor_id?: string | null
         }
         Update: {
@@ -58,6 +60,7 @@ export type Database = {
           created_at?: string
           id?: string
           redirect_url?: string | null
+          site?: string
           visitor_id?: string | null
         }
         Relationships: [
@@ -151,6 +154,7 @@ export type Database = {
           device: string | null
           id: string
           ip_address: string | null
+          site: string
           source: string | null
           utm_campaign: string | null
           utm_medium: string | null
@@ -162,6 +166,7 @@ export type Database = {
           device?: string | null
           id?: string
           ip_address?: string | null
+          site?: string
           source?: string | null
           utm_campaign?: string | null
           utm_medium?: string | null
@@ -173,6 +178,7 @@ export type Database = {
           device?: string | null
           id?: string
           ip_address?: string | null
+          site?: string
           source?: string | null
           utm_campaign?: string | null
           utm_medium?: string | null
