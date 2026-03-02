@@ -13,8 +13,8 @@ import { useAnalytics } from '@/hooks/useAnalytics';
 const Index = () => {
   const [loaded, setLoaded] = useState(false);
 
-  // Initialize analytics (add your IDs when ready)
-  useAnalytics(/* 'G-XXXXXXXXXX', 'XXXXXXXXXX' */);
+  // Meta Pixel is loaded globally in index.html; add GA4 ID when ready
+  useAnalytics(/* 'G-XXXXXXXXXX' */);
 
   useEffect(() => {
     trackVisitor();
